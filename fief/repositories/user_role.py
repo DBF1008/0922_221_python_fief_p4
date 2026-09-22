@@ -28,3 +28,19 @@ class UserRoleRepository(BaseRepository[UserRole], UUIDRepositoryMixin[UserRole]
 
     async def get_by_role(self, role: UUID4) -> list[UserRole]:
         return await self.list(select(UserRole).where(UserRole.role_id == role))
+
+    async def get_role_users_batch(
+        self, role: UUID4, *, limit: int, after_id: UUID4 | None = None
+    ) -> list[tuple[UUID4, UUID4]]:
+        statement = (
+            select(UserRole.id, UserRole.user_id)
+            .where(UserRole.role_id == role)
+            .order_by(UserRole.id.asc())
+            .limit(limit)
+        )
+
+        if after_id is not None:
+            statement = statement.where(UserRole.id > after_id)
+
+        result = await self._execute_query(statement)
+        return [(row[0], row[1]) for row in result.all()]
